@@ -83,14 +83,12 @@ public class MainActivity extends AppCompatActivity {
         return new String();
     }
 
-    public void setPhotoRadar(View view) {
-        //double[]coordinates = getCoordinates();
-        double[] coordinates = {49.202011, 113.020292};
-
+    public void setPhotoRadar(View view) throws IOException, JSONException {
+        pushToServer("PhotoRadar");
     }
 
-    public void setAccident(View view) {
-        double[] coordinates = getCoordinates();
+    public void setAccident(View view) throws IOException, JSONException {
+        pushToServer("Acciddent");
     }
 
     private double[] getCoordinates() {
@@ -112,9 +110,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void pushToServer() throws IOException, JSONException {
+    private void pushToServer(String type) throws IOException, JSONException {
 
-        JSONObject json = makeJSONObject(1, 1, 'B');
+        JSONObject json = makeJSONObject(1, 1, type);
         JSONObject location = makeLocation();
 
         String post = json.toString();
@@ -156,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    JSONObject makeJSONObject(int id, int _id, char type) throws JSONException {
+    JSONObject makeJSONObject(int id, int _id, String type) throws JSONException {
         JSONObject json = new JSONObject();
         json.put("_id", id);
         json.put("id", _id);
