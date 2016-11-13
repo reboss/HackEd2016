@@ -6,7 +6,10 @@
     "type": "project",
     "require": {
         "php": ">=5.5.9",
-        "laravel/framework": "5.2.*"
+        "laravel/framework": "5.2.*",
+        "workerman/phpsocket.io": "^1.0",
+        "predis/predis": "^1.1",
+        "illuminate/redis": "^5.2"
     },
     "require-dev": {
         "fzaninotto/faker": "~1.4",
