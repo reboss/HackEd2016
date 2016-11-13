@@ -8,6 +8,7 @@ import android.location.LocationManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -32,6 +33,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     private GPXLocationProvider gpxLocation;
     private final double ABOUT_ONE_KILOMETER = 0.0085;
+    MyLocationListener myLocation;
+    boolean GpsPermission;
 
     private Socket mSocket;
 
@@ -75,29 +78,30 @@ public class MainActivity extends AppCompatActivity {
     private String GetTheOSUData() {
 
         // read osreplica.json, check for timed out
-        // readd timed out object with delete flag set to true
+        // read timed out object with delete flag set to true
         return new String();
     }
 
     public void setPhotoRadar(View view) {
         //double[]coordinates = getCoordinates();
-//        final double[] coordinates = {49.202011, 113.020292};
-//
-//        Thread thread = new Thread(new Runnable() {
-//            @Override
-//            public void run() {
-//                try {
-//                    pushToServer("Photoradar");
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                } catch (JSONException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        });
-//
-//        thread.start();
-//        while (thread.isAlive()){}
+        final double[] coordinates = {49.202011, 113.020292};
+
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    pushToServer("Photoradar");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        thread.start();
+        while (thread.isAlive()) {
+        }
         Toast.makeText(getApplicationContext(), "Posted message, Thanks for being a good samaritan",
                 Toast.LENGTH_LONG).show();
     }
@@ -119,28 +123,53 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         thread.start();
-        while (thread.isAlive()){}
+        while (thread.isAlive()) {}
         Toast.makeText(getApplicationContext(), "Posted message, Thanks for being a good samaritan",
                 Toast.LENGTH_LONG).show();
 
     }
 
+    @Override
+    public  void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case 1: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    GpsPermission = true;
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return;
+            }
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
+    }
+
     private double[] getCoordinates() {
-        MyLocationListener myLocation = new MyLocationListener();
+        myLocation = new MyLocationListener();
         LocationManager locationManager = (LocationManager)
                 getSystemService(Context.LOCATION_SERVICE);
         LocationListener locationListener = (LocationListener) myLocation;
+
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // if permissions not granted
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+
             return null;
         }
-
-        locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER, 5000, 10,
-                (LocationListener) locationListener);
-
-        double[] coord = {myLocation.getLat(), myLocation.getLong()};
-        return coord;
+        if (GpsPermission) {
+            locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER, 5000, 10,
+                    (LocationListener) locationListener);
+            double[] coord = {myLocation.getLat(), myLocation.getLong()};
+            return coord;
+        }
+        else {
+            double[] coord = {20.03202902, 100.1212044};
+            return coord;
+        }
 
     }
 
@@ -150,7 +179,6 @@ public class MainActivity extends AppCompatActivity {
         JSONObject location = makeLocation();
 
         json.put("location", location);
-
         mSocket.emit("new data", json);
     }
 
@@ -192,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
         double[] center = getCoordinates();
 
         double d = 1000;
-        double R = 6371e3;
+        double R = 6371 * 1000;
         double lat = Math.toRadians(center[0]);
         double lon = Math.toRadians(center[1]);
 
@@ -220,9 +248,13 @@ public class MainActivity extends AppCompatActivity {
         westLat = Math.toDegrees(westLat);
         westLon = (Math.toDegrees(westLon) + 540) % 360 - 180;
         double[] west = {westLat, westLon};
-        double[][] coordinates = {north, east, west, south};
+        double[][] coordinates = {north, east, south, west};
         location.put("coordinates", coordinates);
 
+        for (int i = 0; i < 4; i++) {
+            double[][] locx = (double[][]) location.get("coordinates");
+            Log.d(TAG, "Lat = " + locx[i][0] + " Long = " + locx[i][1]);
+        }
         return location;
     }
 }

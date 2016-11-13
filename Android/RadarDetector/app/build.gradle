@@ -25,7 +25,6 @@ dependencies {
     compile 'com.android.support:appcompat-v7:24.2.0'
     compile (name:'jdrive-release', ext:'aar')
     compile 'com.github.nkzawa:socket.io-client:0.3.0'
-    compile 'com.android.support.constraint:constraint-layout:1.0.0-beta3'
 }
 
 repositories {
