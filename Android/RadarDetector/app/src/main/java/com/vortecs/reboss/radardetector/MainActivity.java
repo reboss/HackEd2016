@@ -31,6 +31,7 @@ import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.lang.Math;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -82,14 +83,12 @@ public class MainActivity extends AppCompatActivity {
         return new String();
     }
 
-    public void setPhotoRadar(View view) {
-        //double[]coordinates = getCoordinates();
-        double[] coordinates = {49.202011, 113.020292};
-
+    public void setPhotoRadar(View view) throws IOException, JSONException {
+        pushToServer("PhotoRadar");
     }
 
-    public void setAccident(View view) {
-        double[]coordinates = getCoordinates();
+    public void setAccident(View view) throws IOException, JSONException {
+        pushToServer("Acciddent");
     }
 
     private double[] getCoordinates() {
@@ -106,19 +105,16 @@ public class MainActivity extends AppCompatActivity {
                 LocationManager.GPS_PROVIDER, 5000, 10,
                 (android.location.LocationListener) locationListener);
 
-        double [] coord = {myLocation.getLat(), myLocation.getLong()};
+        double[] coord = {myLocation.getLat(), myLocation.getLong()};
         return coord;
 
     }
 
-    private void pushToServer(double[] coordinates, char type) throws IOException, JSONException {
+    private void pushToServer(String type) throws IOException, JSONException {
 
-        JSONObject json = new JSONObject();
-        JSONObject location = new JSONObject();
-        json.put("_id", 1);
-        json.put("id", 1);
-        json.put("fenceType", type);
-        location.put("type", "Polygon");
+        JSONObject json = makeJSONObject(1, 1, type);
+        JSONObject location = makeLocation();
+
         String post = json.toString();
         URL server = new URL(SERVER);
         HttpURLConnection connection = (HttpURLConnection) server.openConnection();
@@ -137,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Device details??
-    public void setDeviceDetails(String details){
+    public void setDeviceDetails(String details) {
 
         JDRIVE.instance().addListenerForEvent("myFenceEnterListener", "fence-enter", new EventReceiver() {
             @Override
@@ -157,4 +153,52 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
+    JSONObject makeJSONObject(int id, int _id, String type) throws JSONException {
+        JSONObject json = new JSONObject();
+        json.put("_id", id);
+        json.put("id", _id);
+        json.put("fenceType", type);
+        return json;
+    }
+
+    JSONObject makeLocation() throws JSONException {
+        JSONObject location = new JSONObject();
+        location.put("type", "Polygon");
+        double[] center = getCoordinates();
+
+        double d = 1000;
+        double R = 6371e3;
+        double lat = Math.toRadians(center[0]);
+        double lon = Math.toRadians(center[1]);
+
+        double northLat = Math.asin(Math.sin(lat) * Math.cos(d / R) + Math.cos(lat) * Math.sin(d / R) * 1);
+        double northLon = lon + Math.atan2(0, Math.cos(d / R) - Math.sin(lat) * Math.sin(northLat));
+        northLat = Math.toDegrees(northLat);
+        northLon = (Math.toDegrees(northLon) + 540) % 360 - 180;
+        double[] north = {northLat, northLon};
+
+
+        double eastLat = Math.asin(Math.sin(lat) * Math.cos(d / R));
+        double eastLon = lon + Math.atan2(1 * Math.sin(d / R) * Math.cos(lat), Math.cos(d / R) - Math.sin(lat) * Math.sin(eastLat));
+        eastLat = Math.toDegrees(eastLat);
+        eastLon = (Math.toDegrees(eastLon) + 540) % 360 - 180;
+        double[] east = {eastLat, eastLon};
+
+        double southLat = Math.asin(Math.sin(lat) * Math.cos(d / R) + Math.cos(lat) * Math.sin(d / R) * 1);
+        double southLon = lon + Math.atan2(0, Math.cos(d / R) - Math.sin(lat) * Math.sin(southLat));
+        southLat = Math.toDegrees(southLat);
+        southLon = (Math.toDegrees(southLon) + 540) % 360 - 180;
+        double[] south = {southLat, southLon};
+
+        double westLat = Math.asin(Math.sin(lat) * Math.cos(d / R));
+        double westLon = lon + Math.atan2(1 * Math.sin(d / R) * Math.cos(lat), Math.cos(d / R) - Math.sin(lat) * Math.sin(westLat));
+        westLat = Math.toDegrees(westLat);
+        westLon = (Math.toDegrees(westLon) + 540) % 360 - 180;
+        double[] west = {westLat, westLon};
+        double[][] coordinates = {north, east, west, south};
+        location.put("coordinates", coordinates);
+
+        return location;
+    }
 }
