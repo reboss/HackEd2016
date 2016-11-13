@@ -18,7 +18,7 @@ public class ServerListener extends Service {
     private Socket mSocket;
     {
         try {
-            mSocket = IO.socket("http://chat.socket.io");
+            mSocket = IO.socket("http://chat");
         } catch (URISyntaxException e) {}
     }
 

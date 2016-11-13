@@ -61,6 +61,13 @@
             android:layout_height="0dip"
             android:layout_weight="1"
             android:background="@android:color/holo_green_light" >
+
+            <Button
+                android:text="Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/button3"
+                android:onClick="onStartUp" />
         </FrameLayout>
 
     </LinearLayout>

@@ -2,12 +2,15 @@ package com.vortecs.reboss.radardetector;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Bundle;
+import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
@@ -22,19 +25,25 @@ import com.github.nkzawa.socketio.client.Socket;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URISyntaxException;
-import java.lang.Math;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LocationListener {
 
     private final String SERVER = "http://hacked2016.herokuapp.com";
     private static final String TAG = MainActivity.class.getSimpleName();
     private GPXLocationProvider gpxLocation;
     private final double ABOUT_ONE_KILOMETER = 0.0085;
-    MyLocationListener myLocation;
-    boolean GpsPermission;
+    private MyLocationListener myLocation;
+    private boolean GpsPermission;
+    private double latitude;
+    private double longitude;
+    private LocationManager locationManager;
 
     private Socket mSocket;
 
@@ -52,8 +61,10 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    JSONObject data = (JSONObject) args[0];
-
+                    JSONObject payload = (JSONObject) args[0];
+                    Long ts = System.currentTimeMillis() / 1000;
+                    JDRIVE.instance().osu(payload.toString(), ts.toString());
+                    Log.d(TAG, payload.toString());
                 }
             });
         }
@@ -63,16 +74,81 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        gpxLocation = new GPXLocationProvider(
-                new File(getFilesDir(), "master.gpx").getPath());
+        copyGPXFile();
+        gpxLocation = new GPXLocationProvider(new File(getFilesDir(), "master.gpx").getPath());
 
         setContentView(R.layout.activity_main);
         JDRIVE.instance().initialize(getFilesDir().getPath());
         JDRIVE.instance().setLocationProvider(gpxLocation);
 
-        mSocket.on("new fence", onNewFence);
+        mSocket.on("push data", onNewFence);
         mSocket.connect();
+
         //JDRIVE.instance().run();
+
+        JDRIVE.instance().osr(new EventReceiver() {
+            @Override
+            public void receive(String event, String ts) {
+                String payload = GetTheOSUData();
+                JDRIVE.instance().osu(payload, ts);
+            }
+        });
+        JDRIVE.instance().addListenerForEvent("myFenceEnterListener", "fence-enter", new EventReceiver() {
+            @Override
+            public void receive(String event, String ts) {
+
+            }
+        });
+
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            return;
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                2000, 1, this);
+    }
+
+    private void copyGPXFile() {
+        try {
+            InputStream istream = getAssets().open("gpx/master.gpx");
+            int size = istream.available();
+            byte[] buffer = new byte[size];
+            istream.read(buffer);
+            istream.close();
+
+            FileOutputStream ostream = new FileOutputStream(new File(getFilesDir() + "/master.gpx"));
+            ostream.write(buffer);
+            ostream.close();
+        } catch(Exception e) {
+
+        }
+    }
+
+    private void sendOSU(String ts) {
+        try {
+            Log.v(TAG, "preparing OSU");
+            String[] files = getAssets().list("os");
+            StringBuilder payload = new StringBuilder();
+            int numFiles = files.length;
+            int count = 0;
+            for (String file : files) {
+                count++;
+                Log.v(TAG, "reading file: " + file);
+                InputStream stream = getAssets().open("os/" + file);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    payload.append(line);
+                }
+                if (count < numFiles)
+                    payload.append(',');
+            }
+            Log.v(TAG, "sending OSU");
+            JDRIVE.instance().osu(payload.toString(), ts);
+        } catch (Exception ex) {
+        }
     }
 
     private String GetTheOSUData() {
@@ -83,8 +159,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setPhotoRadar(View view) {
-        //double[]coordinates = getCoordinates();
-        final double[] coordinates = {49.202011, 113.020292};
 
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -102,13 +176,11 @@ public class MainActivity extends AppCompatActivity {
         thread.start();
         while (thread.isAlive()) {
         }
-        Toast.makeText(getApplicationContext(), "Posted message, Thanks for being a good samaritan",
+        Toast.makeText(getApplicationContext(), "Posted message, Thanks for being a good samaritan... Also, your coordinates are: ("+latitude+","+longitude+")",
                 Toast.LENGTH_LONG).show();
     }
 
     public void setAccident(View view) {
-        //double[]coordinates = getCoordinates();
-        final double[] coordinates = {49.202011, 113.020292};
 
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -148,30 +220,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private double[] getCoordinates() {
-        myLocation = new MyLocationListener();
-        LocationManager locationManager = (LocationManager)
-                getSystemService(Context.LOCATION_SERVICE);
-        LocationListener locationListener = (LocationListener) myLocation;
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-
-            return null;
-        }
-        if (GpsPermission) {
-            locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER, 5000, 10,
-                    (LocationListener) locationListener);
-            double[] coord = {myLocation.getLat(), myLocation.getLong()};
-            return coord;
-        }
-        else {
-            double[] coord = {20.03202902, 100.1212044};
-            return coord;
-        }
-
-    }
 
     private void pushToServer(String type) throws IOException, JSONException {
 
@@ -181,30 +229,6 @@ public class MainActivity extends AppCompatActivity {
         json.put("location", location);
         mSocket.emit("new data", json);
     }
-
-
-//    public void setDeviceDetails(String details) {
-//
-//
-//        JDRIVE.instance().addListenerForEvent("myFenceEnterListener", "fence-enter", new EventReceiver() {
-//            @Override
-//            public void receive(String event, String ts) {
-//                // notify user about photo radar
-//                // UI event?
-//            }
-//        });
-//
-//        // how to remove fences??
-//        JDRIVE.instance().osr(new EventReceiver() {
-//            @Override
-//            public void receive(String event, String ts) {
-//                // get the fence and NLR objects from your backend or local store etc.
-//                String payload = GetTheOSUData();
-//                JDRIVE.instance().osu(payload, ts);
-//            }
-//        });
-//    }
-
 
     JSONObject makeJSONObject(int id, int _id, String type) throws JSONException {
         JSONObject json = new JSONObject();
@@ -217,12 +241,11 @@ public class MainActivity extends AppCompatActivity {
     JSONObject makeLocation() throws JSONException {
         JSONObject location = new JSONObject();
         location.put("type", "Polygon");
-        double[] center = getCoordinates();
 
         double d = 1000;
         double R = 6371 * 1000;
-        double lat = Math.toRadians(center[0]);
-        double lon = Math.toRadians(center[1]);
+        double lat = Math.toRadians(latitude);
+        double lon = Math.toRadians(longitude);
 
         double northLat = Math.asin(Math.sin(lat) * Math.cos(d / R) + Math.cos(lat) * Math.sin(d / R) * 1);
         double northLon = lon + Math.atan2(0, Math.cos(d / R) - Math.sin(lat) * Math.sin(northLat));
@@ -257,4 +280,71 @@ public class MainActivity extends AppCompatActivity {
         }
         return location;
     }
+
+    @Override
+    public void onLocationChanged(Location location) {
+            latitude = location.getLatitude();
+            longitude = location.getLongitude();
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+        startActivity(intent);
+        Toast.makeText(getBaseContext(), "Gps is turned off!! ",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+        Toast.makeText(getBaseContext(), "Gps is turned on!! ",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+        // TODO Auto-generated method stub
+
+    }
+
+//    private void onStartUp() {
+//
+//
+//        Log.v(TAG, "initializing drive");
+//        JDRIVE.instance().initialize(getFilesDir().getPath());
+//        JDRIVE.instance().setLocationProvider(new GPXLocationProvider(new File(getFilesDir(), "master.gpx").getPath()));
+//
+//        // Setup the listener for the OSR
+//        JDRIVE.instance().osr(new EventReceiver() {
+//            @Override
+//            public void receive(String event, String ts) {
+//                Log.v(TAG, "RECEIVED AN OSR!!!");
+//                Log.v(TAG, "TS: " + ts);
+//                sendOSU(ts);
+//            }
+//        });
+//        // Setup the listener for the UI event which happens when a fence is entered and exited.
+//        JDRIVE.instance().addListenerForEvent("UI", "UI", new EventReceiver() {
+//            @Override
+//            public void receive(final String event, String ts) {
+//                Log.v(TAG, "UI Event received!");
+//                runOnUiThread(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        TextView tv = (TextView)findViewById(R.id.textView3);
+//                        tv.setText(getUIName(event));
+//                        tv = (TextView)findViewById(R.id.textView2);
+//                        tv.setText(getLoc(event));
+//                    }
+//                });
+//            }
+//        });
+//        // start driving.
+//        Log.v(TAG, "running drive");
+//        Snackbar.make(v, "running!", Snackbar.LENGTH_SHORT)
+//                .setAction("Action", null).show();
+//        JDRIVE.instance().run();
+//    }
 }
