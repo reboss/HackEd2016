@@ -13,6 +13,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.drivewyze.EventReceiver;
@@ -44,6 +45,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private double latitude = 1.1;
     private double longitude = 1.1;
     private LocationManager locationManager;
+    private View alert;
 
     private Socket mSocket;
 
@@ -74,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        alert = this.findViewById(R.id.colorAlert);
         copyGPXFile();
         gpxLocation = new GPXLocationProvider(new File(getFilesDir(), "master.gpx").getPath());
 
@@ -98,6 +101,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             public void receive(String event, String ts) {
                 Toast.makeText(getApplicationContext(), "There's photo radar nearby",
                         Toast.LENGTH_LONG).show();
+                alert.setBackgroundColor(getResources().getColor(R.color.red));
             }
         });
 
