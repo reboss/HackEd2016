@@ -34,16 +34,16 @@ import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final String SERVER = "109.199.127.236";
+    private final String SERVER = "http://hacked2016.herokuapp.com";
     private static final String TAG = MainActivity.class.getSimpleName();
     private GPXLocationProvider gpxLocation;
-    private Location currentBestLocation = null;
+    private final double ABOUT_ONE_KILOMETER = 0.0085;
 
     private Socket mSocket;
 
     {
         try {
-            mSocket = IO.socket("http://chat.socket.io");
+            mSocket = IO.socket(SERVER);
         } catch (URISyntaxException e) {
         }
     }
@@ -79,17 +79,48 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String GetTheOSUData() {
+
+        // read osreplica.json, check for timed out
+        // readd timed out object with delete flag set to true
         return new String();
     }
 
     public void setPhotoRadar(View view) {
         //double[]coordinates = getCoordinates();
-        double[] coordinates = {49.202011, 113.020292};
+        final double[] coordinates = {49.202011, 113.020292};
 
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    pushToServer(coordinates, 'P');
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        thread.start();
     }
 
     public void setAccident(View view) {
-        double[]coordinates = getCoordinates();
+        //double[]coordinates = getCoordinates();
+        final double[] coordinates = {49.202011, 113.020292};
+
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    pushToServer(coordinates, 'A');
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        thread.start();
     }
 
     private double[] getCoordinates() {
@@ -115,22 +146,22 @@ public class MainActivity extends AppCompatActivity {
 
         JSONObject json = new JSONObject();
         JSONObject location = new JSONObject();
+        double [][] polygon = {
+                {coordinates[0]+ABOUT_ONE_KILOMETER, coordinates[1]},
+                {coordinates[0]-ABOUT_ONE_KILOMETER, coordinates[1]},
+                {coordinates[0], coordinates[1]+ABOUT_ONE_KILOMETER},
+                {coordinates[0], coordinates[1]-ABOUT_ONE_KILOMETER}
+        };
         json.put("_id", 1);
         json.put("id", 1);
         json.put("fenceType", type);
         location.put("type", "Polygon");
-        String post = json.toString();
-        URL server = new URL(SERVER);
-        HttpURLConnection connection = (HttpURLConnection) server.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setDoOutput(true);
-        connection.setFixedLengthStreamingMode(post.getBytes().length);
-        connection.setRequestProperty("Content-Type", "application/json;charset=utf-8");
-        connection.connect();
+        location.put("coordinates", polygon);
+        json.put("location", location);
+        json.put("type", "fence");
+        json.put("time", System.currentTimeMillis());
 
-        DataOutputStream reqStream = new DataOutputStream(connection.getOutputStream());
-        reqStream.writeBytes(post);
-        reqStream.flush();
+        mSocket.emit("new data", json);
 
         Toast.makeText(getApplicationContext(), "Posted message, Thanks for being a good samaritan",
                 Toast.LENGTH_LONG).show();
@@ -139,10 +170,12 @@ public class MainActivity extends AppCompatActivity {
     // Device details??
     public void setDeviceDetails(String details){
 
+
         JDRIVE.instance().addListenerForEvent("myFenceEnterListener", "fence-enter", new EventReceiver() {
             @Override
             public void receive(String event, String ts) {
-                System.out.println("fence has been entered");
+                // notify user about photo radar
+                // UI event?
             }
         });
 
