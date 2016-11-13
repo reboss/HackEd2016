@@ -196,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
         double westLat = Math.asin(Math.sin(lat) * Math.cos(d / R));
         double westLon = lon + Math.atan2(1 * Math.sin(d / R) * Math.cos(lat), Math.cos(d / R) - Math.sin(lat) * Math.sin(westLat));
         westLat = Math.toDegrees(westLat);
-        northLon = (Math.toDegrees(westLon) + 540) % 360 - 180;
+        westLon = (Math.toDegrees(westLon) + 540) % 360 - 180;
         double[] west = {westLat, westLon};
         double[][] coordinates = {north, east, west, south};
         location.put("coordinates", coordinates);
