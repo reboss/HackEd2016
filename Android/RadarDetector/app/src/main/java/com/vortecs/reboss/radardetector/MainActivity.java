@@ -41,8 +41,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private final double ABOUT_ONE_KILOMETER = 0.0085;
     private MyLocationListener myLocation;
     private boolean GpsPermission;
-    private double latitude;
-    private double longitude;
+    private double latitude = 1.1;
+    private double longitude = 1.1;
     private LocationManager locationManager;
 
     private Socket mSocket;
@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         mSocket.on("push data", onNewFence);
         mSocket.connect();
 
-        //JDRIVE.instance().run();
+        JDRIVE.instance().run();
 
         JDRIVE.instance().osr(new EventReceiver() {
             @Override
@@ -96,7 +96,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         JDRIVE.instance().addListenerForEvent("myFenceEnterListener", "fence-enter", new EventReceiver() {
             @Override
             public void receive(String event, String ts) {
-
+                Toast.makeText(getApplicationContext(), "There's photo radar nearby",
+                        Toast.LENGTH_LONG).show();
             }
         });
 
@@ -121,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             FileOutputStream ostream = new FileOutputStream(new File(getFilesDir() + "/master.gpx"));
             ostream.write(buffer);
             ostream.close();
-        } catch(Exception e) {
+        } catch (Exception e) {
 
         }
     }
@@ -176,7 +177,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         thread.start();
         while (thread.isAlive()) {
         }
-        Toast.makeText(getApplicationContext(), "Posted message, Thanks for being a good samaritan... Also, your coordinates are: ("+latitude+","+longitude+")",
+        Toast.makeText(getApplicationContext(), "Message posted, Thanks for being a good samaritan... Also, your coordinates are: (" + latitude + "," + longitude + ")",
                 Toast.LENGTH_LONG).show();
     }
 
@@ -195,14 +196,15 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             }
         });
         thread.start();
-        while (thread.isAlive()) {}
-        Toast.makeText(getApplicationContext(), "Posted message, Thanks for being a good samaritan",
+        while (thread.isAlive()) {
+        }
+        Toast.makeText(getApplicationContext(), "Data posted, Thanks for being a good samaritan",
                 Toast.LENGTH_LONG).show();
 
     }
 
     @Override
-    public  void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
             case 1: {
                 // If request is cancelled, the result arrays are empty.
@@ -283,8 +285,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     @Override
     public void onLocationChanged(Location location) {
-            latitude = location.getLatitude();
-            longitude = location.getLongitude();
+        latitude = location.getLatitude();
+        longitude = location.getLongitude();
     }
 
     @Override
@@ -309,42 +311,4 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     }
 
-//    private void onStartUp() {
-//
-//
-//        Log.v(TAG, "initializing drive");
-//        JDRIVE.instance().initialize(getFilesDir().getPath());
-//        JDRIVE.instance().setLocationProvider(new GPXLocationProvider(new File(getFilesDir(), "master.gpx").getPath()));
-//
-//        // Setup the listener for the OSR
-//        JDRIVE.instance().osr(new EventReceiver() {
-//            @Override
-//            public void receive(String event, String ts) {
-//                Log.v(TAG, "RECEIVED AN OSR!!!");
-//                Log.v(TAG, "TS: " + ts);
-//                sendOSU(ts);
-//            }
-//        });
-//        // Setup the listener for the UI event which happens when a fence is entered and exited.
-//        JDRIVE.instance().addListenerForEvent("UI", "UI", new EventReceiver() {
-//            @Override
-//            public void receive(final String event, String ts) {
-//                Log.v(TAG, "UI Event received!");
-//                runOnUiThread(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        TextView tv = (TextView)findViewById(R.id.textView3);
-//                        tv.setText(getUIName(event));
-//                        tv = (TextView)findViewById(R.id.textView2);
-//                        tv.setText(getLoc(event));
-//                    }
-//                });
-//            }
-//        });
-//        // start driving.
-//        Log.v(TAG, "running drive");
-//        Snackbar.make(v, "running!", Snackbar.LENGTH_SHORT)
-//                .setAction("Action", null).show();
-//        JDRIVE.instance().run();
-//    }
 }
