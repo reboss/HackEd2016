@@ -41,9 +41,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private GPXLocationProvider gpxLocation;
     private final double ABOUT_ONE_KILOMETER = 0.0085;
     private MyLocationListener myLocation;
-    private boolean GpsPermission;
-    private double latitude = 1.1;
-    private double longitude = 1.1;
+    private double latitude = 53.59602;
+    private double longitude = -113.49201;
     private LocationManager locationManager;
     private View alert;
 
@@ -65,6 +64,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 public void run() {
                     JSONObject payload = (JSONObject) args[0];
                     Long ts = System.currentTimeMillis() / 1000;
+                    sendOSU(ts.toString());
                     JDRIVE.instance().osu(payload.toString(), ts.toString());
                     Log.d(TAG, payload.toString());
                 }
@@ -81,21 +81,14 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         gpxLocation = new GPXLocationProvider(new File(getFilesDir(), "master.gpx").getPath());
 
         setContentView(R.layout.activity_main);
+
         JDRIVE.instance().initialize(getFilesDir().getPath());
         JDRIVE.instance().setLocationProvider(gpxLocation);
+        JDRIVE.instance().run();
 
         mSocket.on("push data", onNewFence);
         mSocket.connect();
 
-        JDRIVE.instance().run();
-
-        JDRIVE.instance().osr(new EventReceiver() {
-            @Override
-            public void receive(String event, String ts) {
-                String payload = GetTheOSUData();
-                JDRIVE.instance().osu(payload, ts);
-            }
-        });
         JDRIVE.instance().addListenerForEvent("myFenceEnterListener", "fence-enter", new EventReceiver() {
             @Override
             public void receive(String event, String ts) {
@@ -104,6 +97,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 alert.setBackgroundColor(getResources().getColor(R.color.red));
             }
         });
+
+        JDRIVE.instance().addListenerForEvent("myFenceEnterListener", "fence-exit", new EventReceiver() {
+            @Override
+            public void receive(String event, String ts) {
+                Toast.makeText(getApplicationContext(), "There's photo radar nearby",
+                        Toast.LENGTH_LONG).show();
+                alert.setBackgroundColor(getResources().getColor(R.color.green));
+            }
+        });
+
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
@@ -181,7 +184,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         thread.start();
         while (thread.isAlive()) {
         }
-        Toast.makeText(getApplicationContext(), "Message posted, Thanks for being a good samaritan... Also, your coordinates are: (" + latitude + "," + longitude + ")",
+        Toast.makeText(getApplicationContext(), "Photo radar reported, Thanks for being a good samaritan",
                 Toast.LENGTH_LONG).show();
     }
 
@@ -202,7 +205,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         thread.start();
         while (thread.isAlive()) {
         }
-        Toast.makeText(getApplicationContext(), "Data posted, Thanks for being a good samaritan",
+        Toast.makeText(getApplicationContext(), "Accident reported, Thanks for being a good samaritan ... Also, your coordinates are: (" + latitude + "," + longitude + ")",
                 Toast.LENGTH_LONG).show();
 
     }
@@ -214,7 +217,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    GpsPermission = true;
+
                 } else {
                     // permission denied, boo! Disable the
                     // functionality that depends on this permission.
@@ -238,7 +241,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     JSONObject makeJSONObject(int id, int _id, String type) throws JSONException {
         JSONObject json = new JSONObject();
-        json.put("_id", id);
+        json.put("_id", ""+id);
         json.put("id", _id);
         json.put("fenceType", type);
         return json;
@@ -249,7 +252,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         location.put("type", "Polygon");
 
         double d = 1000;
-        double R = 6371 * 1000;
+        double R = 6370 * 1000;
         double lat = Math.toRadians(latitude);
         double lon = Math.toRadians(longitude);
 
@@ -312,7 +315,5 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
         // TODO Auto-generated method stub
-
     }
-
 }
